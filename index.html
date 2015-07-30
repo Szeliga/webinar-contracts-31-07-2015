@@ -1,0 +1,460 @@
+<!doctype html>
+<html lang="en">
+
+  <head>
+    <meta charset="utf-8">
+
+    <title>reveal.js - The HTML Presentation Framework</title>
+
+    <meta name="description" content="A framework for easily creating beautiful presentations using HTML">
+    <meta name="author" content="Hakim El Hattab">
+
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, minimal-ui">
+
+    <link rel="stylesheet" href="css/reveal.css">
+    <link rel="stylesheet" href="css/theme/black.css" id="theme">
+
+    <!-- Code syntax highlighting -->
+    <link rel="stylesheet" href="lib/css/zenburn.css">
+
+    <!-- Printing and PDF exports -->
+    <script>
+      var link = document.createElement( 'link' );
+      link.rel = 'stylesheet';
+      link.type = 'text/css';
+      link.href = window.location.search.match( /print-pdf/gi ) ? 'css/print/pdf.css' : 'css/print/paper.css';
+      document.getElementsByTagName( 'head' )[0].appendChild( link );
+    </script>
+
+    <!--[if lt IE 9]>
+    <script src="lib/js/html5shiv.js"></script>
+    <![endif]-->
+  </head>
+
+  <body>
+
+    <div class="reveal">
+
+      <!-- Any section element inside of this container is displayed as a slide -->
+      <div class="slides">
+        <section>
+          <h2>contracts.ruby</h2>
+          <p>assert on steroids</p>
+          <p>
+            <a href="http://egonschiele.github.io/contracts.ruby">http://egonschiele.github.io/contracts.ruby</a>
+          </p>
+        </section>
+
+        <section>
+          <h2>Presentation plan:</h2>
+          <ol style='white-space: nowrap;'>
+            <li>What is it and what it offers?</li>
+            <li>Basic usage</li>
+            <li>Custom contracts</li>
+            <li>Performance</li>
+            <li>Summary</li>
+          </ol>
+        </section>
+
+        <section>
+          <section>
+            <h2>1. What is it and what it offers</h2>
+            <ul>
+              <li class="fragment">Provides assertions on arguments and return values</li>
+              <li class="fragment">Forces the proper usage of an API</li>
+              <li class="fragment">Introduces method overloading (like in C++ and Java)</li>
+              <li class="fragment">Adds invariants to objects</li>
+            </ul>
+            <aside class="notes">
+              * Allows you to explicitly define what type an argument and return value should be
+              <br>
+              * Adds the ability to force a proper API usage, so someone won't try to call methods with wonky arguments and also documents what to expect from a method
+              <br>
+              * Eliminates conditionial branching in methods by overloading them
+              <br>
+              * Enables you to define conditions on an object that must hold in any given point of time
+            </aside>
+          </section>
+
+          <section>
+            <p>What does it look like?</p>
+            <pre data-snippet="1"><code class="ruby" data-trim>
+Contract String => nil
+def greeting(name)
+  puts "Hello, #{name}!"
+end
+
+greeting('Szymon') # => Hello, Szymon!
+            </code></pre>
+            <aside class="notes">
+              It's defined above a method declaration starting with the Contract keyword
+              <br>
+              Using the hashrocket syntax you define ArgumentType => ReturnType
+            </aside>
+          </section>
+          <section>
+            <p>When argument or return value doesn't match...</p>
+            <pre data-snippet="2"><code class="ruby" data-trim>
+Contract String => nil
+def greeting(name)
+  puts "Hello, #{name}!"
+end
+
+greeting(1)
+            </code></pre>
+            <p>... it raises an exception</p>
+            <pre><code class="nohighlight" data-trim>
+Contract violation for argument 1 of 1: (ParamContractError)
+        Expected: String,
+        Actual: 1
+        Value guarded in: Object::greeting
+        With Contract: String => NilClass
+        At: snippet2.rb:5
+
+            </code></pre>
+          </section>
+        </section>
+        <section>
+          <section>
+            <h2>2. Basic usage</h2>
+            <p>What sort of contracts do we have out of the box?</p>
+            <ul>
+              <li class="fragment">Primitives</li>
+              <li class="fragment">Boolean operation</li>
+              <li class="fragment">Arrays and Hashes</li>
+              <li class="fragment">Special cases</li>
+              <li class="fragment">Invariants</li>
+              <li class="fragment">Method overloading</li>
+            </ul>
+          </section>
+          <section>
+            <h2>Primitives</h2>
+            <pre><code class="ruby" data-snippet="3" data-trim>
+Contract Num, Num => Num
+def add(x, y)
+  x + y
+end
+add(1, 2) # => 3
+
+Contract Pos, Neg => Num
+def add_positive_to_negative(x, y)
+  x + y
+end
+add_positive_to_negative(1, -1) # => 0
+add_positive_to_negative(1, 1) # => Contract violation
+            </code></pre>
+            <p>We can also use literals like 1, "a", {} or nil</p>
+            <aside class="notes">
+              There is also a Bool that expects true or false
+            </aside>
+          </section>
+          <section>
+            <h2>Boolean operations</h2>
+            <pre><code class="ruby" data-snippet="4" data-trim>
+Contract Or[Fixnum, Float] => Or[Fixnum, Float]
+def double(x)
+  2 * x
+end
+double(1) # => 2
+double(1.5) # => 3
+double("1") # => Contract violation
+            </code></pre>
+            <aside class="notes">
+              Other boolean operations include And, Xor, Not
+            </aside>
+          </section>
+          <section>
+            <h2>Arrays and Hashes</h2>
+            <pre><code class="ruby" data-snippet="5" data-trim>
+Contract HashOf[Symbol, String] => String
+def serialize(params)
+  return JSON.dump(params)
+end
+serialize(foo: 'bar') # => {"foo":"bar"}
+serialize(foo: 10) # => Contract violation
+
+Contract ArrayOf[Num] => Num
+def sum(numbers)
+  numbers.reduce(:+)
+end
+sum(1.upto(10).to_a) # => 55
+sum([1, 2, 3, '4']) # => Contract violation
+            </code></pre>
+            <aside class="notes">
+              We can also define an expected hash or array that should be passed as an argument. We can define a hash key: Contract, we can also define [Num, String, Neg]
+            </aside>
+          </section>
+          <section>
+            <h2>Special cases</h2>
+            <ul>
+              <li><code>Any</code> - passes for any argument (no constraint)</li>
+              <li><code>None</code> - when a method takes no arguments</li>
+              <li><code>Maybe(Num)</code> - argument can be nil or given contract</li>
+              <li><code>RespondTo[:foo, :bar]</code> - must respond to the given methods</li>
+              <li><code>Exactly(Numeric)</code> - won't pass for subclasses</li>
+              <li><code>Send[:valid?]</code> - the method must return true</li>
+            </ul>
+          </section>
+          <section>
+            <h2>Invariants</h2>
+            <pre><code class="ruby" data-snippet="6" data-trim>
+class Order
+  include Contracts, Contracts::Invariants
+  attr_accessor :client, :products
+  invariant(:client) { client.nil? == false }
+  invariant(:products) { Array(products).any? }
+
+  Contract Any, Any => Order
+  def initialize(client, product)
+    self.client = client
+    self.products = products
+    self
+  end
+end
+Order.new(nil, nil)
+
+            </code></pre>
+            <pre><code class="nohighlight" data-snippet="6" data-trim>
+failure_callback': Invariant violation: (InvariantError)
+            Expected: client condition to be true
+            Actual: false
+            Value guarded in: Order::initialize
+            At: snippet6.rb:13
+            </code></pre>
+
+            <aside class="notes">
+              Define contraints on an object that must hold at all times
+              <br>
+              Affects only methods with contracts
+              <br>
+              Very good for defining nonanemic domain models
+            </aside>
+          </section>
+          <section>
+            <h2>Method overloading</h2>
+            <pre><code class="ruby" data-snippet="7" data-trim>
+Contract ->(n) { n < 12 } => Hash
+def get_ticket(age)
+  { ticket_type: :child }
+end
+
+Contract ->(n) { n >= 12 } => Hash
+def get_ticket(age)
+  { ticket_type: :adult }
+end
+
+p get_ticket(11) # => {:ticket_type=>:child}
+p get_ticket(12) # => {:ticket_type=>:adult}
+            </code></pre>
+            <p class="fragment">What is this lambda doing there... ?</p>
+
+            <aside class="notes">
+              Awesome for breaking down conditional branching into several methods and explicitly
+              stating the cases for each condition.
+              <br>
+              Possible usage GuestUser as a special case pattern
+              <br>
+              The second contract could be Num => Hash,
+              but we can explicitly spell out what to expect
+            </aside>
+          </section>
+        </section>
+        <section>
+          <section>
+            <h2>3. Custom contracts aka where the fun begins</h2>
+            <p class="fragment">There are 3 ways to define a custom contract</p>
+            <ul>
+              <li class="fragment">A proc</li>
+              <li class="fragment">A class with a <code>valid?</code> class method</li>
+              <li class="fragment">A class with a <code>valid?</code> instance method</li>
+            </ul>
+            <aside class="notes">
+              As we've seen on the previous slide, we can define our own contracts,
+              there are three ways to do this
+              <br>
+              Instance method is weird, I couldn't get it to work
+            </aside>
+          </section>
+          <section>
+            <h2>Procs</h2>
+            <pre><code class="ruby" data-snippet="8" data-trim>
+is_even = ->(num) { num % 2 == 0 }
+
+Contract is_even => String
+def check(num)
+  "Yay!"
+end
+            </code></pre>
+            <p>Produces the following error when fails</p>
+            <pre><code class="nohighlight" data-snippet="9" data-trim>
+Contract violation for argument 1 of 1: (ParamContractError)
+        Expected: #<Proc:0x007fe455849ec8@snippet8.rb:4 (lambda)>,
+        Actual: 1
+            </code></pre>
+            <aside class="notes">
+              Good if we need a custom contract for a singe use, gives an unreadable error message
+            </aside>
+          </section>
+          <section>
+            <h2>Class with <code>valid?</code> class method</h2>
+            <pre><code class="ruby" data-snippet="9" data-trim>
+class EvenNumber
+  def self.valid?(num)
+    num % 2 == 0
+  end
+end
+
+Contract EvenNumber => String
+def check(num)
+  "Yay!"
+end
+            </code></pre>
+            <p>Produces the following error when fails</p>
+            <pre><code class="nohighlight" data-snippet="9" data-trim>
+Contract violation for argument 1 of 1: (ParamContractError)
+        Expected: EvenNumber,
+        Actual: 1
+            </code></pre>
+            <aside class="notes">
+              It's more expresive and returns a comprehensive error message
+            </aside>
+          </section>
+          <section>
+            <h2>Class with <code>valid?</code> instance method</h2>
+            <pre><code class="ruby" data-snippet="9" data-trim>
+class Or < CallableClass
+  def initialize(*vals)
+    @vals = vals
+  end
+
+  def valid?(val)
+    @vals.any? do |contract|
+      res, _ = Contract.valid?(val, contract)
+      res
+    end
+  end
+end
+            </code></pre>
+            <aside class="notes">
+              This is the definition of the Or contract, I don't quite get this one,
+              and I wasn't able to get it to work as I expected
+            </aside>
+          </section>
+        </section>
+        <section>
+          <section>
+            <h2>Performance</h2>
+            <p><a href="http://adit.io/posts/2013-03-04-How-I-Made-My-Ruby-Project-10x-Faster.html">http://adit.io/posts/2013-03-04-How-I-Made-My-Ruby-Project-10x-Faster.html</a></p>
+            <aside class="notes">
+              The author has written a blog post about how he was optimizing the library
+              <br>
+              I've also ran the benchmarks provided with the library, and here is what I've got
+            </aside>
+          </section>
+          <section>
+            <p>IO - opening websites and reading their body 100 times</p>
+            <pre><code class="nohighlight" data-trim>
+contracts.ruby|master ⇒ RUBYLIB=./lib ruby benchmarks/io.rb
+                                     user     system      total        real
+testing download                 3.970000   0.360000   4.330000 ( 48.206278)
+testing contracts download       3.810000   0.290000   4.100000 ( 48.630163)
+            </code></pre>
+            <aside class="notes">
+              The author pointed out to me that the IO benchmark is a real-world example
+            </aside>
+          </section>
+          <section>
+            <p>Invariants - ran 1 mil times</p>
+            <pre><code class="nohighlight" data-trim>
+contracts.ruby|master ⇒ RUBYLIB=./lib ruby benchmarks/invariants.rb
+                                           user     system      total        real
+testing contracts add                  4.850000   0.040000   4.890000 (  4.954304)
+testing contracts add with invariants  6.180000   0.030000   6.210000 (  6.232967)
+            </code></pre>
+            <aside class="notes">
+              This benchamrk demonstrates how adding invariants to an object, degrades the performance, compared to an object that doesn't check those contraints on it's own, so it's not entirely accurate.
+            </aside>
+          </section>
+          <section>
+            <p>For a real world usage (making requests)</p>
+            <p>the performance drop is barely visible</p>
+            <aside class="notes">
+              In web development most of the performance degradation will come from the internet connection speed, so the performance drop of the library won't be noticed
+            </aside>
+          </section>
+        </section>
+        <section>
+          <section>
+            <h2>Summary</h2>
+          </section>
+          <section>
+            <p>Pros</p>
+            <ul>
+              <li>Very good in the development process</li>
+              <li>Explicit dependency and results declaration</li>
+              <li>You can disable contracts through <code>NO_CONTRACTS</code> env var</li>
+              <li>Method overloading is sweet</li>
+              <li>Invariants are also sweet</li>
+            </ul>
+            <aside class="notes">
+              PROS:
+              <br>
+              AD 1 - allows to easily log and debug methods in development and staging
+              <br>
+              AD 2 - I personally don't like when code is hidden away too much and too much magic happens
+            </aside>
+          </section>
+          <section>
+            <p>Cons</p>
+            <ul>
+              <li>No way to change failure handling</li>
+              <li>It does degrade the performance a bit</li>
+              <li>Without a proper failure handling it can't be used in code that is facing the end user</li>
+            </ul>
+            <aside class="notes">
+              AD 1 - The only possibility is a global block configuration that gets passed the hash with the description
+              <br>
+              AD 2 - altough not that much visible
+            </aside>
+          </section>
+        </section>
+        <section>
+          <h2>Thank you for your attention. Any questions?</h2>
+        </section>
+      </div>
+    </div>
+
+    <script src="lib/js/head.min.js"></script>
+    <script src="js/reveal.js"></script>
+
+    <script>
+
+      // Full list of configuration options available at:
+      // https://github.com/hakimel/reveal.js#configuration
+      Reveal.initialize({
+        controls: true,
+        progress: true,
+        history: true,
+        center: true,
+        slideNumber: true,
+
+        transition: 'slide', // none/fade/slide/convex/concave/zoom
+
+        // Optional reveal.js plugins
+        dependencies: [
+          { src: 'lib/js/classList.js', condition: function() { return !document.body.classList; } },
+          { src: 'plugin/markdown/marked.js', condition: function() { return !!document.querySelector( '[data-markdown]' ); } },
+          { src: 'plugin/markdown/markdown.js', condition: function() { return !!document.querySelector( '[data-markdown]' ); } },
+          { src: 'plugin/highlight/highlight.js', async: true, condition: function() { return !!document.querySelector( 'pre code' ); }, callback: function() { hljs.initHighlightingOnLoad(); } },
+          { src: 'plugin/zoom-js/zoom.js', async: true },
+          { src: 'plugin/notes/notes.js', async: true }
+        ]
+      });
+
+    </script>
+
+  </body>
+</html>

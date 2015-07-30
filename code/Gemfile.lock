@@ -1,0 +1,15 @@
+GEM
+  remote: https://rubygems.org/
+  specs:
+    contracts (0.10.1)
+    yard (0.8.7.6)
+    yard-contracts (0.1.5)
+      contracts (~> 0.7)
+      yard (~> 0.8)
+
+PLATFORMS
+  ruby
+
+DEPENDENCIES
+  contracts
+  yard-contracts
